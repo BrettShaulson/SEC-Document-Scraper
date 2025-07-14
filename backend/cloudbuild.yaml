@@ -21,7 +21,6 @@ steps:
     - --region=${_REGION}
     - --platform=managed
     - --allow-unauthenticated
-    - --set-env-vars=PORT=8080
 
 images:
 - gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA
