@@ -1,16 +1,26 @@
+# backend/cloudbuild.yaml
+# ──────────────────────────────────────────────────────────────
+substitutions:
+  _SERVICE: sec-scraper       # Cloud Run service name
+  _REGION:  us-central1       # Deployment region
+
 steps:
-# 1)  Build inside ./backend
+# 1️⃣  Build the container (context = ./backend)
 - name: gcr.io/cloud-builders/docker
   dir: backend
-  args: ['build',
-         '-t', 'gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA',
-         '.']
+  args:
+    - build
+    - -t
+    - gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA
+    - .
 
-# 2)  🔹 PUSH the image to Container/Artifact Registry
+# 2️⃣  Push the image so Cloud Run can pull it
 - name: gcr.io/cloud-builders/docker
-  args: ['push', 'gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA']
+  args:
+    - push
+    - gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA
 
-# 3)  Deploy to Cloud Run
+# 3️⃣  Deploy to Cloud Run
 - name: gcr.io/google.com/cloudsdktool/cloud-sdk
   entrypoint: gcloud
   args:
@@ -21,3 +31,7 @@ steps:
     - --region=${_REGION}
     - --platform=managed
     - --allow-unauthenticated
+
+#  (Optional) lets Cloud Build record the image in the build metadata
+images:
+- gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA
