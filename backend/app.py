@@ -1,7 +1,8 @@
 """
-backend/app.py
-────────────────────────────────────────────────────────
-Flask + Gunicorn entry-point for the SEC-scraper Cloud Run service
+SEC Scraper – Flask entry-point
+────────────────────────────────────────────────────────────────
+• /scrape   – POST JSON {filing_url, sections[]} → stores sections in Datastore
+• /healthz  – simple 200 "ok" used by Cloud Run and curl checks
 """
 
 import datetime
@@ -10,22 +11,17 @@ from flask import Flask, request, jsonify
 from google.cloud import datastore
 from sec_api import ExtractorApi
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# ── Config ───────────────────────────────────────────────────
 SEC_API_KEY = "100e904356e228588470074d0064d0faba2863b645688f30e0599f5fe5e9b602"
 
-logging.basicConfig(level=logging.INFO)         # Cloud Logging picks this up
+logging.basicConfig(level=logging.INFO)                       # Cloud Logging
 app = Flask(__name__)
 extractor = ExtractorApi(SEC_API_KEY)
 ds = datastore.Client()
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────
 def save_section(filing_url: str, section_id: str, content: str) -> None:
-    """
-    Persist the scraped section in Cloud Datastore.
-
-    Kind: FilingSection
-    Key : <section_id>:<hash(filing_url)>
-    """
+    """Persist a single section in Cloud Datastore (Kind: FilingSection)."""
     key = ds.key("FilingSection", f"{section_id}:{hash(filing_url)}")
     entity = datastore.Entity(key)
     entity.update(
@@ -38,16 +34,10 @@ def save_section(filing_url: str, section_id: str, content: str) -> None:
     )
     ds.put(entity)
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Routes ───────────────────────────────────────────────────
 @app.route("/scrape", methods=["POST"])
 def scrape():
-    """
-    Body JSON:
-      {
-        "filing_url": "https://www.sec.gov/Archives/…10k.htm",
-        "sections":   ["1", "7"]
-      }
-    """
+    """Scrape selected sections and store them."""
     try:
         body = request.get_json(force=True)
         filing_url = body["filing_url"]
@@ -62,17 +52,13 @@ def scrape():
             save_section(filing_url, sec_id, text)
             results[sec_id] = "stored"
         except Exception as err:
-            app.logger.exception(f"section {sec_id} failed")
+            app.logger.exception("section %s failed", sec_id)
             results[sec_id] = f"error: {err}"
 
     return jsonify(results), 200
 
-# ── Health check ──────────────────────────────────────────────────────────────
+# ── Health check ─────────────────────────────────────────────
 @app.route("/healthz")
-@app.route("/health")               # optional shorter path
+@app.route("/health")          # shorter alias (optional)
 def healthz():
-    """
-    Cloud Run uses this for container health-checks.
-    Returns 200 OK with plain-text 'ok'.
-    """
     return "ok", 200
