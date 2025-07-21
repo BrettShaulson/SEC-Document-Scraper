@@ -3,7 +3,7 @@ import axios from "axios";
 
 const SECTIONS = ["1", "1A", "1B", "3", "7", "7A", "8", "9", "15"];
 
-export default function ScraperForm() {
+export default function ScraperForm() { 
   const [url, setUrl] = useState("");
   const [ticks, setTicks] = useState({});
   const toggle = id => setTicks(p => ({ ...p, [id]: !p[id] }));
