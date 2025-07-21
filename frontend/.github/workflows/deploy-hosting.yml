@@ -1,5 +1,5 @@
 name: Deploy React to Firebase Hosting
-on:
+on: 
   push:
     branches: [main]
     paths: ["frontend/**", "!frontend/.github/**"]
