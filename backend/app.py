@@ -13,7 +13,7 @@ import datetime                           # For timestamps
 
 # Configuration constants
 # SEC API key for accessing sec-api.io service (provided for demo purposes)
-SEC_API_KEY = "100e904356e228588470074d0064d0faba2863b645688f30e0599f5fe5e9b602"
+SEC_API_KEY = "cac67934753b109012616da7f70ed62370167edcad4ffa4699d5d7cc982716b6"
 
 # Google Cloud project ID where the Firestore database is hosted
 PROJECT_ID = "sentiment-analysis-379200"
