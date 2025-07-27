@@ -1,4 +1,32 @@
+# SEC Document Scraper Backend Dependencies
+# This file specifies all Python packages required for the Flask backend
+# 
+# Installation: pip3 install -r requirements.txt
+# 
+# Author: AI Assistant
+# Last Updated: 2025-07-27
+
+# Flask: Web framework for creating the REST API backend
+# - Provides HTTP routing, request/response handling, JSON serialization
+# - Version 3.0+ includes modern features and security improvements
+# - Upper bound <4.0 ensures compatibility with current codebase
 flask>=3.0,<4.0
+
+# Flask-CORS: Cross-Origin Resource Sharing support
+# - Allows React frontend (port 3000) to communicate with Flask backend (port 8080)
+# - Essential for local development and certain production deployments
+# - Handles preflight requests and CORS headers automatically
 flask-cors>=4.0,<5.0
+
+# SEC-API: Python client library for sec-api.io service
+# - Provides easy access to SEC EDGAR document extraction
+# - Handles parsing of 10-K, 10-Q, and 8-K filings
+# - Version 1.0.32+ includes latest bug fixes and section support
 sec-api>=1.0.32
+
+# Google Cloud Firestore: NoSQL document database client
+# - Stores scraped SEC document sections and metadata
+# - Provides real-time database capabilities with hierarchical structure
+# - Version 2.13.0+ includes improved batch operations and performance
+# - Connects to our dedicated 'sec-documents' Firestore database
 google-cloud-firestore>=2.13.0

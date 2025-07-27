@@ -11,6 +11,54 @@ A simple web application for extracting sections from SEC 10-K, 10-Q, and 8-K fi
 - **📊 Google Cloud Datastore integration** - All scraped data automatically saved
 - **🔍 Data viewing** - Query saved filings and sections
 
+## 🚀 Getting Started
+
+### **Prerequisites**
+Before running the application, ensure you have:
+- **Python 3.7+** installed
+- **Node.js 14+** and npm installed
+- **Google Cloud CLI** configured
+- **Google Cloud Project** with Firestore enabled
+
+### **Step 1: Google Cloud Authentication**
+```bash
+# Authenticate with Google Cloud (opens browser)
+gcloud auth application-default login
+
+# Set your Google Cloud project
+gcloud config set project sentiment-analysis-379200
+```
+
+### **Step 2: Backend Setup**
+```bash
+# Navigate to backend directory
+cd backend
+
+# Install Python dependencies
+pip3 install -r requirements.txt
+
+# Start the Flask server (runs on http://localhost:8080)
+python3 app.py
+```
+
+### **Step 3: Frontend Setup**
+In a **new terminal window**:
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install Node.js dependencies
+npm install
+
+# Start the React development server (opens http://localhost:3000)
+npm start
+```
+
+### **Step 4: Access the Application**
+- **Frontend**: http://localhost:3000 (React development server)
+- **Backend API**: http://localhost:8080 (Flask server)
+- **Health Check**: http://localhost:8080/healthz
+
 ## Quick Start
 
 ### Local Development
