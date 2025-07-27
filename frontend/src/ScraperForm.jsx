@@ -41,7 +41,7 @@ const getApiBase = () => {
 const API_BASE = getApiBase();
 console.log('🚀 Final API Base URL:', API_BASE);
 
-export default function ScraperForm() {
+export default function ScraperForm() { 
   const [url, setUrl] = useState("");
   const [filingType, setFilingType] = useState("10-K");
   const [selectedSections, setSelectedSections] = useState({});
