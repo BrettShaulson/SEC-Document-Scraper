@@ -2,4 +2,4 @@ flask>=3.0,<4.0
 flask-cors>=4.0,<5.0
 gunicorn>=22.0,<23.0
 google-cloud-datastore>=2.20,<3.0
-sec-api>=1.1,<2.0
+sec-api>=1.0.32

@@ -1,19 +1,70 @@
 substitutions:
-  _SERVICE: sec-scraper
-  _REGION:  us-central1
+  _SERVICE: sec-document-scraper
+  _REGION: us-central1
+  _MACHINE_TYPE: e2-medium
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '10'
+  _MEMORY: 2Gi
+  _CPU: '1'
+
 steps:
+  # Build the Docker image
   - name: gcr.io/cloud-builders/docker
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA', '.']
+    args: 
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE}:latest'
+      - '.'
+    id: 'build-image'
+
+  # Deploy to Cloud Run (recommended for this application)
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args:
-      - run
-      - deploy
-      - ${_SERVICE}
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE}'
       - '--image=gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA'
       - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars=PORT=8080'
+      - '--memory=${_MEMORY}'
+      - '--cpu=${_CPU}'
+      - '--min-instances=${_MIN_INSTANCES}'
+      - '--max-instances=${_MAX_INSTANCES}'
+      - '--timeout=300'
+      - '--concurrency=80'
+      - '--set-env-vars=PORT=8080,FLASK_ENV=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+      - '--service-account=sec-scraper-service@$PROJECT_ID.iam.gserviceaccount.com'
+    id: 'deploy-cloud-run'
+    waitFor: ['build-image']
+
+  # Optional: Deploy to Compute Engine (uncomment if preferred)
+  # - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  #   entrypoint: gcloud
+  #   args:
+  #     - 'compute'
+  #     - 'instance-templates'
+  #     - 'create-with-container'
+  #     - '${_SERVICE}-template'
+  #     - '--machine-type=${_MACHINE_TYPE}'
+  #     - '--boot-disk-size=20GB'
+  #     - '--image-family=cos-stable'
+  #     - '--image-project=cos-cloud'
+  #     - '--container-image=gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA'
+  #     - '--container-restart-policy=always'
+  #     - '--container-env=PORT=8080,FLASK_ENV=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+  #     - '--service-account=sec-scraper-service@$PROJECT_ID.iam.gserviceaccount.com'
+  #     - '--scopes=cloud-platform'
+  #   id: 'create-instance-template'
+  #   waitFor: ['build-image']
+
 images:
   - 'gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/${_SERVICE}:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
