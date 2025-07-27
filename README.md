@@ -1,6 +1,6 @@
 # SEC Document Scraper
 
-A simple web application for extracting sections from SEC 10-K, 10-Q, and 8-K filings with **Google Cloud Datastore** storage.
+A simple web application for extracting sections from SEC 10-K, 10-Q, and 8-K filings with **Google Cloud Firestore** storage.
 
 ## Features
 
@@ -8,7 +8,7 @@ A simple web application for extracting sections from SEC 10-K, 10-Q, and 8-K fi
 - Flask backend using sec-api.io
 - Auto-detection of filing type from URL
 - Support for all major SEC filing sections
-- **📊 Google Cloud Datastore integration** - All scraped data automatically saved
+- **📊 Google Cloud Firestore integration** - All scraped data automatically saved
 - **🔍 Data viewing** - Query saved filings and sections
 
 ## 🚀 Getting Started
@@ -59,6 +59,122 @@ npm start
 - **Backend API**: http://localhost:8080 (Flask server)
 - **Health Check**: http://localhost:8080/healthz
 
+## 🚀 Google Cloud Compute Engine Deployment
+
+### **Option 1: Automated Deployment (Recommended)**
+
+The easiest way to deploy on Google Cloud Compute Engine:
+
+```bash
+# On your Google Cloud Compute Engine instance:
+cd ~/sec-scraper/SEC-Document-Scraper
+
+# Run the automated deployment script
+./start-servers.sh
+```
+
+**What the automated script does:**
+- ✅ Installs all dependencies (Python3, Node.js, npm)
+- ✅ Sets up Google Cloud authentication check
+- ✅ Starts both backend (port 8080) and frontend (port 3000)
+- ✅ Creates firewall rules automatically
+- ✅ Shows you the URLs to access your app
+- ✅ Runs both services in background with logging
+
+### **Option 2: Manual Google Cloud Setup**
+
+If you prefer manual control:
+
+**Terminal 1 (Backend):**
+```bash
+cd ~/sec-scraper/SEC-Document-Scraper/backend
+pip3 install -r requirements.txt
+python3 app.py
+```
+
+**Terminal 2 (Frontend):**
+```bash
+cd ~/sec-scraper/SEC-Document-Scraper/frontend
+npm install
+npm start
+```
+
+### **🔥 Firewall Rules (Google Cloud)**
+
+```bash
+# Allow frontend access (port 3000)
+gcloud compute firewall-rules create allow-frontend-3000 \
+    --allow tcp:3000 \
+    --source-ranges 0.0.0.0/0 \
+    --description "Allow React frontend access" \
+    --project=sentiment-analysis-379200
+
+# Allow backend access (port 8080)  
+gcloud compute firewall-rules create allow-backend-8080 \
+    --allow tcp:8080 \
+    --source-ranges 0.0.0.0/0 \
+    --description "Allow Flask backend access" \
+    --project=sentiment-analysis-379200
+```
+
+### **🌐 Access Your Application (Google Cloud)**
+
+Once deployed on Google Cloud, access your app at:
+- **Frontend**: `http://[YOUR-EXTERNAL-IP]:3000`
+- **Backend API**: `http://[YOUR-EXTERNAL-IP]:8080`
+- **Health Check**: `http://[YOUR-EXTERNAL-IP]:8080/healthz`
+
+Get your external IP:
+```bash
+curl ifconfig.me
+```
+
+### **📊 Monitoring & Logs**
+
+```bash
+# Check if services are running
+ps aux | grep -E "(python3 app.py|react-scripts)"
+
+# View real-time logs
+tail -f backend.log    # Backend logs
+tail -f frontend.log   # Frontend logs
+
+# Check service status
+curl http://localhost:8080/healthz  # Backend health check
+curl http://localhost:3000          # Frontend status
+```
+
+### **🛑 Stop Services**
+
+**Stop individual services:**
+```bash
+# Stop backend only
+sudo pkill -f "python3 app.py"
+
+# Stop frontend only
+sudo pkill -f "react-scripts start"
+```
+
+**Stop all services:**
+```bash
+# Stop both backend and frontend
+sudo pkill -f "python3 app.py"
+sudo pkill -f "react-scripts start"
+
+# Or if you have the process IDs from the start script:
+kill [BACKEND_PID] [FRONTEND_PID]
+```
+
+**Clean shutdown:**
+```bash
+# Kill all related Node.js and Python processes
+sudo pkill -f "node.*react-scripts"
+sudo pkill -f "python3.*app.py"
+
+# Remove log files (optional)
+rm -f backend.log frontend.log
+```
+
 ## Quick Start
 
 ### Local Development
@@ -89,48 +205,103 @@ The app will be available at `http://localhost:3000`
 1. Enter a SEC document URL (from sec.gov)
 2. Select the sections you want to extract
 3. Click "Extract Sections" to scrape the content
-4. **Data is automatically saved to Google Cloud Datastore** 💾
+4. **Data is automatically saved to Google Cloud Firestore** 💾
 
 ## API Endpoints
 
-- `GET /healthz` - Health check with Datastore status
+- `GET /healthz` - Health check with Firestore status
 - `GET /sections` - Get available sections by filing type
 - `POST /detect-filing-type` - Auto-detect filing type from URL
 - `POST /scrape` - Extract selected sections from filing
-- `GET /filings` - **NEW!** List saved filings from Datastore
+- `GET /filings` - **NEW!** List saved filings from Firestore
+- `GET /filings/<filing_id>/sections/<section_id>` - Get specific section content
 
 ## Data Storage
 
-All scraped data is automatically saved to **Google Cloud Datastore** with this structure:
+All scraped data is automatically saved to **Google Cloud Firestore** with this structure:
 
-**Filing Entities:**
+**Filing Documents:**
 - Filing ID (unique hash)
 - URL, filing type, timestamp
 - Section counts and success/failure stats
 
-**Section Entities:**
+**Section Documents:**
 - Section content and metadata
 - Content length and success status
 - Linked to parent filing
+
+## Troubleshooting
+
+### **Common Issues:**
+
+**Backend won't start:**
+```bash
+# Check if port is in use
+lsof -i :8080
+
+# Check backend logs
+cat backend.log
+
+# Verify dependencies
+pip3 list | grep -E "(flask|sec-api|google-cloud)"
+```
+
+**Frontend won't start:**
+```bash
+# Check if port is in use
+lsof -i :3000
+
+# Check frontend logs
+cat frontend.log
+
+# Clear npm cache
+npm cache clean --force
+```
+
+**Firestore connection issues:**
+```bash
+# Check authentication
+gcloud auth application-default print-access-token
+
+# Check project configuration
+gcloud config get-value project
+
+# Test Firestore access
+curl http://localhost:8080/healthz
+```
+
+**Google Cloud access issues:**
+```bash
+# Check external IP
+curl ifconfig.me
+
+# Verify firewall rules
+gcloud compute firewall-rules list --filter="name~allow-(frontend|backend)"
+
+# Check if services are bound to all interfaces
+netstat -tlnp | grep -E ":3000|:8080"
+```
 
 ## Requirements
 
 - Python 3.7+
 - Node.js 14+
-- Google Cloud Project with Datastore enabled
+- Google Cloud Project with Firestore enabled
 - SEC API key (already included for demo)
 
 ## Structure
 
 ```
 ├── backend/           # Flask API server
-│   ├── app.py        # Main application with Datastore integration
+│   ├── app.py        # Main application with Firestore integration
 │   └── requirements.txt
-└── frontend/         # React web interface
-    ├── src/
-    │   ├── ScraperForm.jsx
-    │   └── ScraperForm.css
-    └── package.json
+├── frontend/         # React web interface
+│   ├── src/
+│   │   ├── ScraperForm.jsx
+│   │   └── ScraperForm.css
+│   └── package.json
+├── start-servers.sh  # Automated deployment script
+└── README.md
 ```
 
 ## Production Deployment
@@ -149,7 +320,7 @@ const API_BASE = 'https://your-backend-domain.com';
 {
   "filing_type": "10-K",
   "filing_id": "703e2d880500",
-  "datastore_saved": true,
+  "firestore_saved": true,
   "summary": {
     "successful_sections": 1,
     "failed_sections": 0,

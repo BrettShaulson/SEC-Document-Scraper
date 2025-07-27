@@ -109,6 +109,8 @@ def save_to_firestore(filing_url, filing_type, sections_data):
         filing_id = generate_filing_id(filing_url)
         timestamp = datetime.datetime.utcnow()
         
+        print(f"💾 Saving filing {filing_id} to Firestore (sec-documents database)...")
+        
         # Create the main filing document in the 'filings' collection
         filing_ref = db.collection('filings').document(filing_id)
         filing_data = {
@@ -121,35 +123,55 @@ def save_to_firestore(filing_url, filing_type, sections_data):
         }
         # Save the main filing document
         filing_ref.set(filing_data)
+        print(f"✅ Saved main filing document with {len(sections_data)} sections")
         
         # Create a sub-collection for storing individual sections
         sections_ref = filing_ref.collection('sections')
         
         # Use Firestore batch writes for efficiency (all sections saved together)
         batch = db.batch()
-        for section in sections_data:
+        successful_saves = 0
+        
+        for i, section in enumerate(sections_data):
+            section_id = section['section']
+            print(f"📄 Preparing section {section_id} for batch save...")
+            
             # Each section gets its own document (e.g., "1", "1A", "7")
-            section_doc_ref = sections_ref.document(section['section'])
+            section_doc_ref = sections_ref.document(section_id)
+            
+            # Prepare section data with unique content for each section
             section_data = {
-                'section_id': section['section'],           # e.g., "1A"
-                'content': section.get('content', ''),      # Full section text content
-                'content_length': section.get('content_length', 0),  # Character count
-                'success': section['success'],              # Whether extraction worked
-                'error': section.get('error', ''),          # Error message if failed
-                'scraped_at': timestamp                     # When this section was processed
+                'section_id': section_id,                           # e.g., "1A"
+                'content': section.get('content', ''),              # Full section text content (UNIQUE for each section)
+                'content_length': section.get('content_length', 0), # Character count
+                'success': section['success'],                      # Whether extraction worked
+                'error': section.get('error', ''),                  # Error message if failed
+                'scraped_at': timestamp                             # When this section was processed
             }
-            # Add this section to the batch
+            
+            # Log what we're about to save for this specific section
+            if section_data['success']:
+                content_preview = section_data['content'][:50] + "..." if len(section_data['content']) > 50 else section_data['content']
+                print(f"  └─ Section {section_id}: {section_data['content_length']} chars - '{content_preview}'")
+                successful_saves += 1
+            else:
+                print(f"  └─ Section {section_id}: FAILED - {section_data['error']}")
+            
+            # Add this section to the batch (each section gets its unique content)
             batch.set(section_doc_ref, section_data)
         
         # Execute all section saves at once for data consistency
+        print(f"🚀 Committing batch with {len(sections_data)} sections to Firestore...")
         batch.commit()
         
-        print(f"✅ Saved filing {filing_id} with {len(sections_data)} sections to Firestore (sec-documents)")
+        print(f"✅ Successfully saved filing {filing_id} with {successful_saves} successful sections to Firestore (sec-documents)")
         return True
         
     except Exception as e:
         # Log any errors but don't crash the application
         print(f"❌ Failed to save to Firestore: {e}")
+        import traceback
+        traceback.print_exc()  # Print full stack trace for debugging
         return False
 
 def detect_filing_type(url):
@@ -288,21 +310,30 @@ def scrape():
     successful = 0
     failed = 0
     
+    print(f"🔍 Starting extraction for {len(sections)} sections from {filing_type} filing")
+    
     # Process each requested section
     for section_id in sections:
         try:
-            # Call SEC API to extract this section's content
-            content = extractor.get_section(url, section_id, "text")
+            print(f"📄 Extracting section {section_id}...")
             
-            if content and content.strip():
+            # Call SEC API to extract this section's content
+            # IMPORTANT: Each call should return unique content for each section
+            section_content = extractor.get_section(url, section_id, "text")
+            
+            if section_content and section_content.strip():
                 # SUCCESS: We got content for this section
+                content_length = len(section_content)
+                content_preview = section_content[:100] + "..." if len(section_content) > 100 else section_content
+                print(f"✅ Section {section_id}: {content_length} chars - '{content_preview}'")
                 
                 # Full data for Firestore storage (complete content preserved)
+                # CRITICAL: Each section gets its own unique content object
                 full_section_data = {
                     "section": section_id,
                     "success": True,
-                    "content_length": len(content),
-                    "content": content  # CRITICAL: Store complete content in database
+                    "content_length": content_length,
+                    "content": str(section_content)  # Ensure it's a string and unique for this section
                 }
                 results_for_storage.append(full_section_data)
                 
@@ -310,14 +341,15 @@ def scrape():
                 display_section_data = {
                     "section": section_id,
                     "success": True,
-                    "content_length": len(content),
-                    "content": content[:500] + "..." if len(content) > 500 else content
+                    "content_length": content_length,
+                    "content": section_content[:500] + "..." if len(section_content) > 500 else section_content
                 }
                 results_for_display.append(display_section_data)
                 successful += 1
                 
             else:
                 # FAILURE: No content found for this section
+                print(f"❌ Section {section_id}: No content found")
                 error_data = {
                     "section": section_id,
                     "success": False,
@@ -329,6 +361,7 @@ def scrape():
                 
         except Exception as e:
             # FAILURE: SEC API call failed
+            print(f"❌ Section {section_id}: Error - {str(e)}")
             error_data = {
                 "section": section_id,
                 "success": False,
@@ -337,6 +370,15 @@ def scrape():
             results_for_storage.append(error_data)
             results_for_display.append(error_data)
             failed += 1
+    
+    # Debug: Log what we're about to save
+    print(f"💾 Preparing to save {len(results_for_storage)} sections to Firestore:")
+    for i, section_data in enumerate(results_for_storage):
+        if section_data.get('success'):
+            content_preview = section_data.get('content', '')[:50] + "..." if len(section_data.get('content', '')) > 50 else section_data.get('content', '')
+            print(f"  {i+1}. Section {section_data['section']}: {section_data.get('content_length', 0)} chars - '{content_preview}'")
+        else:
+            print(f"  {i+1}. Section {section_data['section']}: FAILED - {section_data.get('error', 'Unknown error')}")
     
     # Save the COMPLETE content to Firestore for permanent storage
     firestore_saved = save_to_firestore(url, filing_type, results_for_storage)
