@@ -46,14 +46,18 @@ except Exception as e:
 
 # Define which sections are available for each type of SEC filing
 # This mapping helps the frontend know what sections can be extracted
+# NOTE: These section IDs must match exactly what the sec-api.io API expects
 SECTIONS = {
     # 10-K filings: Annual comprehensive business reports
+    # Using standard section numbers that the SEC API recognizes
     "10-K": ["1", "1A", "1B", "2", "3", "4", "5", "7", "7A", "8", "9", "9A", "9B", "10", "11", "12", "13", "14", "15"],
     
     # 10-Q filings: Quarterly financial reports  
+    # Using part/item format that the SEC API recognizes
     "10-Q": ["part1item1", "part1item2", "part1item3", "part1item4", "part2item1", "part2item1a", "part2item2", "part2item5", "part2item6"],
     
     # 8-K filings: Current reports for significant corporate events
+    # Using item format that the SEC API recognizes
     "8-K": ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2", "4-1", "5-1", "5-2", "7-1", "8-1", "9-1"]
 }
 
@@ -197,6 +201,79 @@ def detect_filing_type(url):
         return "8-K"
     return "10-K"  # Default to most common filing type
 
+def validate_section_content(content, requested_section, filing_type):
+    """
+    Validate that the returned content actually matches the requested section.
+    
+    This prevents saving duplicate content when the SEC API returns the wrong section
+    or falls back to a default section when the requested section doesn't exist.
+    
+    Args:
+        content (str): The content returned by the SEC API
+        requested_section (str): The section we requested (e.g., "1A", "1B")
+        filing_type (str): The type of filing ("10-K", "10-Q", "8-K")
+        
+    Returns:
+        bool: True if content matches the requested section, False otherwise
+    """
+    if not content:
+        return False
+    
+    # Convert content to uppercase for case-insensitive matching
+    content_upper = content.upper()
+    
+    # Expected section headers based on filing type and section
+    expected_headers = []
+    
+    if filing_type == "10-K":
+        if requested_section == "1":
+            expected_headers = ["ITEM 1.", "ITEM 1 ", "BUSINESS"]
+        elif requested_section == "1A":
+            expected_headers = ["ITEM 1A.", "ITEM 1A ", "RISK FACTORS"]
+        elif requested_section == "1B":
+            expected_headers = ["ITEM 1B.", "ITEM 1B ", "UNRESOLVED STAFF COMMENTS"]
+        elif requested_section == "2":
+            expected_headers = ["ITEM 2.", "ITEM 2 ", "PROPERTIES"]
+        elif requested_section == "3":
+            expected_headers = ["ITEM 3.", "ITEM 3 ", "LEGAL PROCEEDINGS"]
+        elif requested_section == "7":
+            expected_headers = ["ITEM 7.", "ITEM 7 ", "MANAGEMENT'S DISCUSSION"]
+        elif requested_section == "7A":
+            expected_headers = ["ITEM 7A.", "ITEM 7A ", "QUANTITATIVE AND QUALITATIVE"]
+        else:
+            # For other sections, just check if it contains the item number
+            expected_headers = [f"ITEM {requested_section}.", f"ITEM {requested_section} "]
+    
+    elif filing_type == "10-Q":
+        # 10-Q sections have different naming patterns
+        if "part1item1" in requested_section.lower():
+            expected_headers = ["PART I", "ITEM 1", "FINANCIAL STATEMENTS"]
+        elif "part1item2" in requested_section.lower():
+            expected_headers = ["ITEM 2", "MANAGEMENT'S DISCUSSION"]
+        else:
+            # Generic check for part/item pattern
+            expected_headers = ["PART", "ITEM"]
+    
+    elif filing_type == "8-K":
+        # 8-K sections have item patterns like "1-1", "2-1"
+        item_num = requested_section.split('-')[0] if '-' in requested_section else requested_section
+        expected_headers = [f"ITEM {item_num}", f"ITEM {requested_section}"]
+    
+    # Check if any expected header is found in the content
+    if expected_headers:
+        for header in expected_headers:
+            if header in content_upper:
+                print(f"   ✅ Content validation passed: Found '{header}' for section {requested_section}")
+                return True
+        
+        print(f"   ❌ Content validation failed: None of {expected_headers} found for section {requested_section}")
+        print(f"   📄 Content preview: {content[:200]}...")
+        return False
+    else:
+        # If we don't have specific validation rules, assume it's valid
+        print(f"   ⚠️  No validation rules for section {requested_section}, assuming valid")
+        return True
+
 # =====================================
 # API ENDPOINTS (REST API Routes)
 # =====================================
@@ -205,7 +282,7 @@ def detect_filing_type(url):
 def health():
     """
     Health check endpoint for monitoring system status.
-    
+        
     Returns:
         JSON with system status, database connectivity, and configuration
         
@@ -234,6 +311,7 @@ def get_sections():
     - Know which sections are valid for each filing type
     - Populate the user interface dynamically
     """
+    print(f"📋 Returning section definitions: {SECTIONS}")
     return jsonify(SECTIONS)
 
 @app.route('/detect-filing-type', methods=['POST'])
@@ -316,36 +394,62 @@ def scrape():
     for section_id in sections:
         try:
             print(f"📄 Extracting section {section_id}...")
+            print(f"   URL: {url}")
+            print(f"   Section ID: '{section_id}'")
+            print(f"   Format: text")
             
             # Call SEC API to extract this section's content
             # IMPORTANT: Each call should return unique content for each section
             section_content = extractor.get_section(url, section_id, "text")
             
+            # Debug: Show what we got back from the API
+            if section_content:
+                content_sample = section_content[:200].replace('\n', ' ').replace('\r', ' ')
+                print(f"   🔍 API Response Preview: '{content_sample}...'")
+                print(f"   📏 Content Length: {len(section_content)} characters")
+            else:
+                print(f"   ❌ API returned empty/None content")
+            
             if section_content and section_content.strip():
-                # SUCCESS: We got content for this section
-                content_length = len(section_content)
-                content_preview = section_content[:100] + "..." if len(section_content) > 100 else section_content
-                print(f"✅ Section {section_id}: {content_length} chars - '{content_preview}'")
+                # CRITICAL: Validate that the returned content actually matches the requested section
+                content_valid = validate_section_content(section_content, section_id, filing_type)
                 
-                # Full data for Firestore storage (complete content preserved)
-                # CRITICAL: Each section gets its own unique content object
-                full_section_data = {
-                    "section": section_id,
-                    "success": True,
-                    "content_length": content_length,
-                    "content": str(section_content)  # Ensure it's a string and unique for this section
-                }
-                results_for_storage.append(full_section_data)
-                
-                # Truncated data for API response (for performance)
-                display_section_data = {
-                    "section": section_id,
-                    "success": True,
-                    "content_length": content_length,
-                    "content": section_content[:500] + "..." if len(section_content) > 500 else section_content
-                }
-                results_for_display.append(display_section_data)
-                successful += 1
+                if content_valid:
+                    # SUCCESS: We got valid content for this section
+                    content_length = len(section_content)
+                    content_preview = section_content[:100] + "..." if len(section_content) > 100 else section_content
+                    print(f"✅ Section {section_id}: {content_length} chars - VALID CONTENT - '{content_preview}'")
+                    
+                    # Full data for Firestore storage (complete content preserved)
+                    # CRITICAL: Each section gets its own unique content object
+                    full_section_data = {
+                        "section": section_id,
+                        "success": True,
+                        "content_length": content_length,
+                        "content": str(section_content)  # Ensure it's a string and unique for this section
+                    }
+                    results_for_storage.append(full_section_data)
+                    
+                    # Truncated data for API response (for performance)
+                    display_section_data = {
+                        "section": section_id,
+                        "success": True,
+                        "content_length": content_length,
+                        "content": section_content[:500] + "..." if len(section_content) > 500 else section_content
+                    }
+                    results_for_display.append(display_section_data)
+                    successful += 1
+                else:
+                    # FAILURE: Content doesn't match the requested section
+                    print(f"❌ Section {section_id}: Content validation failed - API returned wrong section content")
+                    error_data = {
+                        "section": section_id,
+                        "success": False,
+                        "error": f"Section {section_id} not found in this document (API returned different section)"
+                    }
+                    results_for_storage.append(error_data)
+                    results_for_display.append(error_data)
+                    failed += 1
                 
             else:
                 # FAILURE: No content found for this section
@@ -362,6 +466,9 @@ def scrape():
         except Exception as e:
             # FAILURE: SEC API call failed
             print(f"❌ Section {section_id}: Error - {str(e)}")
+            print(f"   Exception Type: {type(e).__name__}")
+            import traceback
+            print(f"   Stack Trace: {traceback.format_exc()}")
             error_data = {
                 "section": section_id,
                 "success": False,
@@ -491,6 +598,57 @@ def get_section(filing_id, section_id):
     except Exception as e:
         print(f"❌ Failed to fetch section: {e}")
         return jsonify({"error": f"Failed to fetch section: {e}"}), 500
+
+@app.route('/debug/test-section', methods=['POST'])
+def debug_test_section():
+    """
+    Debug endpoint to test SEC API extraction for a specific section.
+    
+    Expected POST body:
+        {
+            "filing_url": "https://www.sec.gov/Archives/edgar/data/...",
+            "section": "1A"
+        }
+        
+    Returns detailed information about what the SEC API returns for this specific section.
+    """
+    data = request.get_json()
+    
+    if not data or not data.get('filing_url') or not data.get('section'):
+        return jsonify({"error": "Missing filing_url or section"}), 400
+    
+    url = data['filing_url']
+    section_id = data['section']
+    
+    print(f"🧪 DEBUG: Testing section extraction")
+    print(f"   URL: {url}")
+    print(f"   Section: {section_id}")
+    
+    try:
+        # Test the SEC API call
+        content = extractor.get_section(url, section_id, "text")
+        
+        result = {
+            "section_id": section_id,
+            "url": url,
+            "content_found": content is not None,
+            "content_length": len(content) if content else 0,
+            "content_preview": content[:500] if content else None,
+            "content_first_100_chars": content[:100] if content else None
+        }
+        
+        print(f"🧪 DEBUG Result: {result}")
+        return jsonify(result)
+        
+    except Exception as e:
+        error_result = {
+            "section_id": section_id,
+            "url": url,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+        print(f"🧪 DEBUG Error: {error_result}")
+        return jsonify(error_result), 500
 
 # =====================================
 # APPLICATION STARTUP

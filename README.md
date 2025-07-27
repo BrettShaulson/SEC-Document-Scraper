@@ -59,6 +59,16 @@ npm start
 - **Backend API**: http://localhost:8080 (Flask server)
 - **Health Check**: http://localhost:8080/healthz
 
+## 🚀 Deployment Options
+
+### **Quick Reference**
+
+| Environment | Script | Purpose |
+|-------------|--------|---------|
+| **Local Development** | `./start-local.sh` | Run on your laptop/desktop (no sudo required) |
+| **Google Cloud** | `./start-servers.sh` | Deploy to Google Cloud Compute Engine |
+| **Manual Setup** | Individual commands | Full control over each step |
+
 ## 🚀 Google Cloud Compute Engine Deployment
 
 ### **Option 1: Automated Deployment (Recommended)**
@@ -81,9 +91,49 @@ cd ~/sec-scraper/SEC-Document-Scraper
 - ✅ Shows you the URLs to access your app
 - ✅ Runs both services in background with logging
 
-### **Option 2: Manual Google Cloud Setup**
+## 🏠 Local Development
+
+### **Quick Start for Local Development**
+
+For local development on your laptop/desktop:
+
+```bash
+# Navigate to project directory
+cd SEC-Document-Scraper
+
+# Run the local development script
+./start-local.sh
+```
+
+**What the local script does:**
+- ✅ Checks dependencies without requiring sudo
+- ✅ Stops existing processes gracefully (no password required)
+- ✅ Installs dependencies and starts both servers
+- ✅ Auto-opens browser to http://localhost:3000
+- ✅ Shows local and network IP addresses
+- ✅ Provides easy stop commands
+
+### **Manual Local Setup** (Alternative)
 
 If you prefer manual control:
+
+**Terminal 1 (Backend):**
+```bash
+cd backend
+pip3 install -r requirements.txt
+python3 app.py
+```
+
+**Terminal 2 (Frontend):**
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### **Option 2: Manual Google Cloud Setup**
+
+If you prefer manual control on Google Cloud:
 
 **Terminal 1 (Backend):**
 ```bash

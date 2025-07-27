@@ -1,47 +1,20 @@
 {
-  "_comment_header": "SEC Document Scraper Frontend Configuration",
-  "_comment_description": "React application for scraping SEC document sections with modern UI",
-  "_comment_author": "AI Assistant",
-  "_comment_updated": "2025-07-27",
-  
   "name": "sec-scraper-ui",
   "version": "0.1.0",
   "private": true,
-  
-  "_comment_dependencies": "Core packages required for the React frontend application",
   "dependencies": {
-    "_comment_axios": "HTTP client for making API requests to Flask backend",
     "axios": "^1.7.2",
-    
-    "_comment_react": "Core React library for building user interfaces",
     "react": "^18.3.1",
-    
-    "_comment_react_dom": "React DOM bindings for web browser rendering",
     "react-dom": "^18.3.1",
-    
-    "_comment_react_scripts": "Create React App build tools and development server",
     "react-scripts": "5.0.1"
   },
-  
-  "_comment_scripts": "NPM scripts for development, building, and testing",
   "scripts": {
-    "_comment_start": "Start development server on http://localhost:3000",
     "start": "react-scripts start",
-    
-    "_comment_build": "Create optimized production build in 'build' folder",
     "build": "react-scripts build",
-    
-    "_comment_test": "Run Jest test suite for component testing",
     "test": "react-scripts test",
-    
-    "_comment_eject": "Eject from Create React App (irreversible operation)",
     "eject": "react-scripts eject"
   },
-  
-  "_comment_proxy": "Development proxy: forwards API calls to backend server",
   "proxy": "http://localhost:8080",
-  
-  "_comment_browserslist": "Supported browsers for CSS autoprefixing and JS transpilation",
   "browserslist": {
     "production": [
       ">0.2%",
