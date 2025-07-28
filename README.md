@@ -1,6 +1,6 @@
 # SEC Document Scraper
 
-A web application for extracting sections from SEC 10-K, 10-Q, and 8-K filings with **Google Cloud Firestore** storage and **scrape session hierarchy** for better data organization.
+A web application for extracting sections from SEC 10-K, 10-Q, and 8-K filings with **Google Cloud Firestore** storage.
 
 ## Features
 
