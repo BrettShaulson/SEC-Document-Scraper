@@ -8,7 +8,7 @@
  * - Real-time feedback on scraping progress
  * - Integration with Flask backend API
  * 
- * Author: AI Assistant
+ * Author: Brett Shaulson
  * Last Updated: 2025-07-27
  */
 
