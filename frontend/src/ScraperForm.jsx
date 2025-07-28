@@ -21,13 +21,13 @@ import "./ScraperForm.css";
  * 
  * Logic:
  * - Development (localhost): Use relative URLs because package.json has proxy configured
- * - Production: Use environment variable or construct from hostname
+ * - Production (Google Cloud): Use same hostname with port 8080
  * 
  * This ensures the frontend can connect to the backend in both development and production
  */
 const API_BASE = window.location.hostname === 'localhost' 
   ? ''  // Development: Use relative URLs because of proxy in package.json
-  : 'https://your-production-backend.com';  // Production: Replace with actual backend URL
+  : `http://${window.location.hostname}:8080`;  // Production: Same IP, port 8080
 
 /**
  * Main component for the SEC Document Scraper interface
