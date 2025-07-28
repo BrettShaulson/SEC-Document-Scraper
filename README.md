@@ -47,10 +47,7 @@ Use the automated startup script for local development:
 
 **To stop services (run before just in case):**
 ```bash
-# Use the provided process IDs from script output
-kill [BACKEND_PID] [FRONTEND_PID]
-
-# Or kill all processes on the ports
+# Kill all processes on the ports
 kill -9 $(lsof -ti:3000,8080)
 ```
 
