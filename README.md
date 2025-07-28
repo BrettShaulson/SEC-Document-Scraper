@@ -1,6 +1,6 @@
 # SEC Document Scraper
 
-A web application for extracting sections from SEC 10-K, 10-Q, and 8-K filings with **Google Cloud Firestore** storage and **scrape session hierarchy** for better data organization.
+A web application for extracting sections from SEC 10-K, 10-Q, and 8-K filings with **Google Cloud Firestore** storage.
 
 ## Features
 
@@ -40,7 +40,7 @@ Use the automated startup script for local development:
 - ✅ Auto-opens browser (macOS)
 - ✅ Shows all access URLs and stop commands
 
-**To stop services:**
+**To stop services (run before just in case):**
 ```bash
 # Use the provided process IDs from script output
 kill [BACKEND_PID] [FRONTEND_PID]
@@ -49,13 +49,11 @@ kill [BACKEND_PID] [FRONTEND_PID]
 kill -9 $(lsof -ti:3000,8080)
 ```
 
-### **☁️ Google Cloud Compute Engine (Automated)**
+### **☁️ Google Cloud Compute Engine**
 
 Use the comprehensive cloud deployment script:
 
 ```bash
-# Make script executable and run
-chmod +x start-servers.sh
 ./start-servers.sh
 ```
 
