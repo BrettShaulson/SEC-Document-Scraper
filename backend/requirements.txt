@@ -3,7 +3,7 @@
 # 
 # Installation: pip3 install -r requirements.txt
 # 
-# Author: AI Assistant
+# Author: Brett Shaulson
 # Last Updated: 2025-07-27
 
 # Flask: Web framework for creating the REST API backend
