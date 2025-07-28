@@ -8,113 +8,12 @@
  * Running on http://127.0.0.1:8080
  * Running on http://192.168.1.137:8080
 [33mPress CTRL+C to quit[0m
-127.0.0.1 - - [27/Jul/2025 15:36:09] "GET /sections HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:09] "GET /sections HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:16] "GET /sections HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:16] "GET /sections HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:19] "OPTIONS /detect-filing-type HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:19] "POST /detect-filing-type HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:25] "OPTIONS /scrape HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:25] "POST /debug/test-section HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:26] "POST /scrape HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:36:34] "POST /debug/test-section HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:38:30] "OPTIONS /scrape HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:38:31] "POST /scrape HTTP/1.1" 200 -
-📋 Returning section definitions: {'10-K': ['1', '1A', '1B', '2', '3', '4', '5', '7', '7A', '8', '9', '9A', '9B', '10', '11', '12', '13', '14', '15'], '10-Q': ['part1item1', 'part1item2', 'part1item3', 'part1item4', 'part2item1', 'part2item1a', 'part2item2', 'part2item5', 'part2item6'], '8-K': ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '5-1', '5-2', '7-1', '8-1', '9-1']}
-📋 Returning section definitions: {'10-K': ['1', '1A', '1B', '2', '3', '4', '5', '7', '7A', '8', '9', '9A', '9B', '10', '11', '12', '13', '14', '15'], '10-Q': ['part1item1', 'part1item2', 'part1item3', 'part1item4', 'part2item1', 'part2item1a', 'part2item2', 'part2item5', 'part2item6'], '8-K': ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '5-1', '5-2', '7-1', '8-1', '9-1']}
-📋 Returning section definitions: {'10-K': ['1', '1A', '1B', '2', '3', '4', '5', '7', '7A', '8', '9', '9A', '9B', '10', '11', '12', '13', '14', '15'], '10-Q': ['part1item1', 'part1item2', 'part1item3', 'part1item4', 'part2item1', 'part2item1a', 'part2item2', 'part2item5', 'part2item6'], '8-K': ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '5-1', '5-2', '7-1', '8-1', '9-1']}
-📋 Returning section definitions: {'10-K': ['1', '1A', '1B', '2', '3', '4', '5', '7', '7A', '8', '9', '9A', '9B', '10', '11', '12', '13', '14', '15'], '10-Q': ['part1item1', 'part1item2', 'part1item3', 'part1item4', 'part2item1', 'part2item1a', 'part2item2', 'part2item5', 'part2item6'], '8-K': ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '5-1', '5-2', '7-1', '8-1', '9-1']}
-🔍 Starting extraction for 2 sections from 10-K filing
-📄 Extracting section 1B...
-   URL: https://www.sec.gov/Archives/edgar/data/1318605/000162828025003063/tsla-20241231.htm#ie9fbbc0a99a6483f9fc1594c1ef72807_283
-   Section ID: '1B'
-   Format: text
-   🔍 API Response Preview: ' ITEM 1A. RISK FACTORS   You should carefully consider the risks described below together with the other information set forth in this report, which could materially affect our business, financial con...'
-   📏 Content Length: 79928 characters
-✅ Section 1B: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully consider the risks described below together with the o...'
-📄 Extracting section 1A...
-   URL: https://www.sec.gov/Archives/edgar/data/1318605/000162828025003063/tsla-20241231.htm#ie9fbbc0a99a6483f9fc1594c1ef72807_283
-   Section ID: '1A'
-   Format: text
-🧪 DEBUG: Testing section extraction
-   URL: https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240630.htm
-   Section: 1
-   🔍 API Response Preview: ' ITEM 1A. RISK FACTORS   You should carefully consider the risks described below together with the other information set forth in this report, which could materially affect our business, financial con...'
-   📏 Content Length: 79928 characters
-✅ Section 1A: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully consider the risks described below together with the o...'
-💾 Preparing to save 2 sections to Firestore:
-  1. Section 1B: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-  2. Section 1A: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-💾 Saving filing 006e7ec65a36 to Firestore (sec-documents database)...
-🧪 DEBUG Result: {'section_id': '1', 'url': 'https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240630.htm', 'content_found': True, 'content_length': 16339, 'content_preview': ' Item 1. Business \n\nCompany Background \n\nThe Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services. The Company&#8217;s fiscal year is the 52- or 53-week period that ends on the last Saturday of September. \n\nProducts \n\niPhone \n\niPhone &#174; is the Company&#8217;s line of smartphones based on its iOS operating system. The iPhone line includes iPhone 16 Pro, iPhone 16, iPhone 15, iPhone 14 and iPhone ', 'content_first_100_chars': ' Item 1. Business \n\nCompany Background \n\nThe Company designs, manufactures and markets smartphones, '}
-✅ Saved main filing document with 2 sections
-📄 Preparing section 1B for batch save...
-  └─ Section 1B: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-📄 Preparing section 1A for batch save...
-  └─ Section 1A: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-🚀 Committing batch with 2 sections to Firestore...
-✅ Successfully saved filing 006e7ec65a36 with 2 successful sections to Firestore (sec-documents)
-🧪 DEBUG: Testing section extraction
-   URL: https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240630.htm
-   Section: 1A
-🧪 DEBUG Result: {'section_id': '1A', 'url': 'https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240630.htm', 'content_found': True, 'content_length': 70585, 'content_preview': ' Item 1A. Risk Factors \n\nThe Company&#8217;s business, reputation, results of operations, financial condition and stock price can be affected by a number of factors, whether currently known or unknown, including those described below. When any one or more of these risks materialize from time to time, the Company&#8217;s business, reputation, results of operations, financial condition and stock price can be materially and adversely affected. \n\nBecause of the following factors, as well as other fa', 'content_first_100_chars': ' Item 1A. Risk Factors \n\nThe Company&#8217;s business, reputation, results of operations, financial '}
-🔍 Starting extraction for 2 sections from 10-K filing
-📄 Extracting section 1B...
-   URL: https://www.sec.gov/Archives/edgar/data/1318605/000162828025003063/tsla-20241231.htm#ie9fbbc0a99a6483f9fc1594c1ef72807_283
-   Section ID: '1B'
-   Format: text
-   🔍 API Response Preview: ' ITEM 1A. RISK FACTORS   You should carefully consider the risks described below together with the other information set forth in this report, which could materially affect our business, financial con...'
-   📏 Content Length: 79928 characters
-✅ Section 1B: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully consider the risks described below together with the o...'
-📄 Extracting section 1A...
-   URL: https://www.sec.gov/Archives/edgar/data/1318605/000162828025003063/tsla-20241231.htm#ie9fbbc0a99a6483f9fc1594c1ef72807_283
-   Section ID: '1A'
-   Format: text
-   🔍 API Response Preview: ' ITEM 1A. RISK FACTORS   You should carefully consider the risks described below together with the other information set forth in this report, which could materially affect our business, financial con...'
-   📏 Content Length: 79928 characters
-✅ Section 1A: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully consider the risks described below together with the o...'
-💾 Preparing to save 2 sections to Firestore:
-  1. Section 1B: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-  2. Section 1A: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-💾 Saving filing 006e7ec65a36 to Firestore (sec-documents database)...
-✅ Saved main filing document with 2 sections
-📄 Preparing section 1B for batch save...
-  └─ Section 1B: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-📄 Preparing section 1A for batch save...
-  └─ Section 1A: 79928 chars - ' ITEM 1A. RISK FACTORS 
-
-You should carefully cons...'
-🚀 Committing batch with 2 sections to Firestore...
-✅ Successfully saved filing 006e7ec65a36 with 2 successful sections to Firestore (sec-documents)
-🔍 Starting extraction for 2 sections from 10-K filing
-📄 Extracting section 1...
-   URL: https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/aapl-20240630.htm
-   Section ID: '1'
-   Format: text
-   🔍 API Response Preview: ' Item 1. Business   Company Background   The Company designs, manufactures and markets smartphones, personal computers, tablets, wearables and accessories, and sells a variety of related services. The...'
-   📏 Content Length: 16339 characters
-127.0.0.1 - - [27/Jul/2025 15:39:59] "POST /scrape HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:40:11] "GET /filings/e56e67fdc74d/sections/1 HTTP/1.1" 200 -
-127.0.0.1 - - [27/Jul/2025 15:40:21] "GET /filings/e56e67fdc74d/sections/1A HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:43:23] "GET /healthz HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:43:55] "POST /scrape HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:44:05] "GET /filings/703e2d880500/sessions HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:44:11] "GET /filings/703e2d880500/sessions/2025-07-28_16-43-54/sections HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:44:21] "POST /scrape HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:44:28] "GET /filings/703e2d880500/sessions HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:44:35] "GET /filings HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:44:42] "GET /filings/703e2d880500/sessions/2025-07-28_16-43-54/sections/1A HTTP/1.1" 200 -
+127.0.0.1 - - [28/Jul/2025 12:44:43] "GET /filings/703e2d880500/sessions/2025-07-28_16-44-20/sections/1B HTTP/1.1" 200 -

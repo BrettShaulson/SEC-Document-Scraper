@@ -20,13 +20,13 @@ import "./ScraperForm.css";
  * Determine the correct API base URL based on environment
  * 
  * Logic:
- * - Development (localhost): Always use localhost:8080 for backend
+ * - Development (localhost): Use relative URLs because package.json has proxy configured
  * - Production: Use environment variable or construct from hostname
  * 
  * This ensures the frontend can connect to the backend in both development and production
  */
 const API_BASE = window.location.hostname === 'localhost' 
-  ? 'http://localhost:8080'  // Development: Backend runs on port 8080
+  ? ''  // Development: Use relative URLs because of proxy in package.json
   : 'https://your-production-backend.com';  // Production: Replace with actual backend URL
 
 /**

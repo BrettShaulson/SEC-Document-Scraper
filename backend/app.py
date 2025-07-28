@@ -1,7 +1,8 @@
 # SEC Document Scraper Backend
 # A Flask web application that extracts sections from SEC filings and stores them in Firestore
 # Author: AI Assistant
-# Last Updated: 2025-07-27
+# Last Updated: 2025-07-28
+# NEW: Implements scrape session hierarchy for better data organization
 
 # Import required libraries
 from flask import Flask, request, jsonify  # Web framework for creating REST API
@@ -80,82 +81,139 @@ def generate_filing_id(url):
     """
     return hashlib.md5(url.encode()).hexdigest()[:12]
 
-def save_to_firestore(filing_url, filing_type, sections_data):
+def generate_session_id():
     """
-    Save a complete SEC filing and its sections to our Firestore database.
+    Generate a unique session ID for each scrape operation.
     
-    This function implements a hierarchical storage structure:
-    - Main filing document with metadata
-    - Sub-collection of sections with full content
+    Returns:
+        str: Timestamp-based session ID (e.g., "2025-07-28_12-30-45")
+        
+    Why we do this:
+    - Each scrape operation gets its own isolated session
+    - Timestamp format makes sessions human-readable
+    - Prevents mixing data from different scrape operations
+    """
+    return datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+
+def save_to_firestore(filing_url, filing_type, sections_data, requested_sections):
+    """
+    Save a complete SEC filing and its sections using the new scrape session hierarchy.
+    
+    NEW STRUCTURE:
+    filings/{filing_id}/
+    ├── url, filing_type, total_unique_sections, latest_session_id
+    └── scrape_sessions/{session_id}/
+        ├── scraped_at, sections_count, successful_sections, requested_sections
+        └── sections/{section_id}/
+            ├── content, content_length, success, error
+            └── scraped_at
     
     Args:
         filing_url (str): The original SEC URL
         filing_type (str): Type of filing (10-K, 10-Q, 8-K)
         sections_data (list): List of section dictionaries with content
+        requested_sections (list): List of section IDs that were requested
         
     Returns:
-        bool: True if saved successfully, False otherwise
-        
-    Database Structure Created:
-        filings/{filing_id}/
-        ├── url, filing_type, scraped_at, etc.
-        └── sections/{section_id}/
-            ├── content (full text)
-            ├── content_length
-            ├── success status
-            └── timestamps
+        tuple: (success: bool, filing_id: str, session_id: str)
     """
     # Check if Firestore is available (might not be in local development)
     if not FIRESTORE_AVAILABLE or not db:
         print("⚠️  Firestore not available - data not saved")
-        return False
+        return False, None, None
     
     try:
-        # Generate consistent filing ID and timestamp
+        # Generate consistent filing ID and unique session ID
         filing_id = generate_filing_id(filing_url)
+        session_id = generate_session_id()
         timestamp = datetime.datetime.utcnow()
         
-        print(f"💾 Saving filing {filing_id} to Firestore (sec-documents database)...")
+        print(f"💾 Saving filing {filing_id} with session {session_id} to Firestore...")
         
-        # Create the main filing document in the 'filings' collection
+        # Reference to the main filing document
         filing_ref = db.collection('filings').document(filing_id)
+        
+        # Check if this filing already exists to calculate total unique sections
+        existing_filing = filing_ref.get()
+        existing_sessions = []
+        all_unique_sections = set()
+        
+        if existing_filing.exists:
+            # Get all existing sessions to calculate unique sections
+            sessions_ref = filing_ref.collection('scrape_sessions')
+            existing_sessions_docs = sessions_ref.stream()
+            
+            for session_doc in existing_sessions_docs:
+                session_data = session_doc.to_dict()
+                existing_sessions.append(session_doc.id)
+                # Add sections from this session to our unique set
+                session_sections_ref = sessions_ref.document(session_doc.id).collection('sections')
+                session_sections = session_sections_ref.stream()
+                for section_doc in session_sections:
+                    section_data = section_doc.to_dict()
+                    if section_data.get('success', False):
+                        all_unique_sections.add(section_doc.id)
+        
+        # Add successful sections from current session to unique set
+        successful_current_sections = [s['section'] for s in sections_data if s['success']]
+        all_unique_sections.update(successful_current_sections)
+        
+        # Create or update the main filing document
         filing_data = {
-            'url': filing_url,                    # Original SEC URL
-            'filing_type': filing_type,           # 10-K, 10-Q, or 8-K
-            'scraped_at': timestamp,              # When we processed this filing
-            'sections_count': len(sections_data), # Total sections attempted
-            'successful_sections': sum(1 for s in sections_data if s['success']),  # How many worked
-            'failed_sections': sum(1 for s in sections_data if not s['success'])   # How many failed
+            'url': filing_url,
+            'filing_type': filing_type,
+            'latest_session_id': session_id,
+            'latest_scrape_at': timestamp,
+            'total_unique_sections': len(all_unique_sections),
+            'total_sessions': len(existing_sessions) + 1
         }
-        # Save the main filing document
-        filing_ref.set(filing_data)
-        print(f"✅ Saved main filing document with {len(sections_data)} sections")
         
-        # Create a sub-collection for storing individual sections
-        sections_ref = filing_ref.collection('sections')
+        # Add first_scraped_at only if this is a new filing
+        if not existing_filing.exists:
+            filing_data['first_scraped_at'] = timestamp
         
-        # Use Firestore batch writes for efficiency (all sections saved together)
+        filing_ref.set(filing_data, merge=True)  # Merge to preserve existing data
+        print(f"✅ Updated main filing document (session {len(existing_sessions) + 1})")
+        
+        # Create the scrape session document
+        session_ref = filing_ref.collection('scrape_sessions').document(session_id)
+        session_data = {
+            'scraped_at': timestamp,
+            'sections_count': len(sections_data),
+            'successful_sections': sum(1 for s in sections_data if s['success']),
+            'failed_sections': sum(1 for s in sections_data if not s['success']),
+            'requested_sections': requested_sections,
+            'filing_type': filing_type,
+            'filing_url': filing_url
+        }
+        session_ref.set(session_data)
+        print(f"✅ Created scrape session {session_id}")
+        
+        # Create sections sub-collection within this session
+        sections_ref = session_ref.collection('sections')
+        
+        # Use Firestore batch writes for efficiency
         batch = db.batch()
         successful_saves = 0
         
-        for i, section in enumerate(sections_data):
+        for section in sections_data:
             section_id = section['section']
-            print(f"📄 Preparing section {section_id} for batch save...")
+            print(f"📄 Preparing section {section_id} for session {session_id}...")
             
-            # Each section gets its own document (e.g., "1", "1A", "7")
             section_doc_ref = sections_ref.document(section_id)
             
-            # Prepare section data with unique content for each section
+            # Prepare section data
             section_data = {
-                'section_id': section_id,                           # e.g., "1A"
-                'content': section.get('content', ''),              # Full section text content (UNIQUE for each section)
-                'content_length': section.get('content_length', 0), # Character count
-                'success': section['success'],                      # Whether extraction worked
-                'error': section.get('error', ''),                  # Error message if failed
-                'scraped_at': timestamp                             # When this section was processed
+                'section_id': section_id,
+                'content': section.get('content', ''),
+                'content_length': section.get('content_length', 0),
+                'success': section['success'],
+                'error': section.get('error', ''),
+                'scraped_at': timestamp,
+                'session_id': session_id
             }
             
-            # Log what we're about to save for this specific section
+            # Log what we're saving
             if section_data['success']:
                 content_preview = section_data['content'][:50] + "..." if len(section_data['content']) > 50 else section_data['content']
                 print(f"  └─ Section {section_id}: {section_data['content_length']} chars - '{content_preview}'")
@@ -163,22 +221,20 @@ def save_to_firestore(filing_url, filing_type, sections_data):
             else:
                 print(f"  └─ Section {section_id}: FAILED - {section_data['error']}")
             
-            # Add this section to the batch (each section gets its unique content)
             batch.set(section_doc_ref, section_data)
         
-        # Execute all section saves at once for data consistency
-        print(f"🚀 Committing batch with {len(sections_data)} sections to Firestore...")
+        # Execute all section saves at once
+        print(f"🚀 Committing batch with {len(sections_data)} sections for session {session_id}...")
         batch.commit()
         
-        print(f"✅ Successfully saved filing {filing_id} with {successful_saves} successful sections to Firestore (sec-documents)")
-        return True
+        print(f"✅ Successfully saved filing {filing_id} session {session_id} with {successful_saves} successful sections")
+        return True, filing_id, session_id
         
     except Exception as e:
-        # Log any errors but don't crash the application
         print(f"❌ Failed to save to Firestore: {e}")
         import traceback
-        traceback.print_exc()  # Print full stack trace for debugging
-        return False
+        traceback.print_exc()
+        return False, None, None
 
 def detect_filing_type(url):
     """
@@ -297,7 +353,8 @@ def health():
         "status": "healthy",                        # Basic service status
         "firestore_available": FIRESTORE_AVAILABLE, # Can we connect to database?
         "database": "sec-documents",                # Which Firestore database
-        "project_id": PROJECT_ID                   # Which Google Cloud project
+        "project_id": PROJECT_ID,                   # Which Google Cloud project
+        "structure": "scrape_sessions"              # NEW: Indicates we use session hierarchy
     })
 
 @app.route('/sections')
@@ -342,7 +399,7 @@ def scrape():
     """
     Main endpoint for extracting sections from SEC filings.
     
-    This is the core functionality of our application.
+    NOW USES SCRAPE SESSION HIERARCHY for better data organization.
     
     Expected POST body:
         {
@@ -354,16 +411,11 @@ def scrape():
         {
             "filing_type": "10-K",
             "filing_id": "703e2d880500",
+            "session_id": "2025-07-28_12-30-45",
             "firestore_saved": true,
             "summary": {"successful_sections": 2, "failed_sections": 1, "total_sections": 3},
-            "results": [...]  // Truncated content for display
+            "results": [...]
         }
-        
-    Process:
-    1. Validate input data
-    2. Extract content using SEC API
-    3. Store FULL content in Firestore
-    4. Return truncated content for display
     """
     data = request.get_json()
     
@@ -401,7 +453,6 @@ def scrape():
             print(f"   Format: text")
             
             # Call SEC API to extract this section's content
-            # IMPORTANT: Each call should return unique content for each section
             section_content = extractor.get_section(url, section_id, "text")
             
             # Debug: Show what we got back from the API
@@ -413,7 +464,7 @@ def scrape():
                 print(f"   ❌ API returned empty/None content")
             
             if section_content and section_content.strip():
-                # CRITICAL: Validate that the returned content actually matches the requested section
+                # Validate that the returned content actually matches the requested section
                 content_valid = validate_section_content(section_content, section_id, filing_type)
                 
                 if content_valid:
@@ -422,17 +473,16 @@ def scrape():
                     content_preview = section_content[:100] + "..." if len(section_content) > 100 else section_content
                     print(f"✅ Section {section_id}: {content_length} chars - VALID CONTENT - '{content_preview}'")
                     
-                    # Full data for Firestore storage (complete content preserved)
-                    # CRITICAL: Each section gets its own unique content object
+                    # Full data for Firestore storage
                     full_section_data = {
                         "section": section_id,
                         "success": True,
                         "content_length": content_length,
-                        "content": str(section_content)  # Ensure it's a string and unique for this section
+                        "content": str(section_content)
                     }
                     results_for_storage.append(full_section_data)
                     
-                    # Truncated data for API response (for performance)
+                    # Truncated data for API response
                     display_section_data = {
                         "section": section_id,
                         "success": True,
@@ -480,64 +530,53 @@ def scrape():
             results_for_display.append(error_data)
             failed += 1
     
-    # Debug: Log what we're about to save
-    print(f"💾 Preparing to save {len(results_for_storage)} sections to Firestore:")
-    for i, section_data in enumerate(results_for_storage):
-        if section_data.get('success'):
-            content_preview = section_data.get('content', '')[:50] + "..." if len(section_data.get('content', '')) > 50 else section_data.get('content', '')
-            print(f"  {i+1}. Section {section_data['section']}: {section_data.get('content_length', 0)} chars - '{content_preview}'")
-        else:
-            print(f"  {i+1}. Section {section_data['section']}: FAILED - {section_data.get('error', 'Unknown error')}")
+    # Save using the NEW scrape session hierarchy
+    firestore_saved, filing_id, session_id = save_to_firestore(
+        url, filing_type, results_for_storage, sections
+    )
     
-    # Save the COMPLETE content to Firestore for permanent storage
-    firestore_saved = save_to_firestore(url, filing_type, results_for_storage)
-    
-    # Return response with truncated content for frontend display
+    # Return response with session information
     return jsonify({
-        "filing_type": filing_type,                                    # What type we detected
-        "filing_id": generate_filing_id(url) if firestore_saved else None,  # Database ID
-        "firestore_saved": firestore_saved,                           # Did database save work?
+        "filing_type": filing_type,
+        "filing_id": filing_id,
+        "session_id": session_id,  # NEW: Session ID for this scrape operation
+        "firestore_saved": firestore_saved,
         "summary": {
             "successful_sections": successful,
             "failed_sections": failed,
             "total_sections": len(sections)
         },
-        "results": results_for_display  # Truncated content for UI performance
+        "results": results_for_display
     })
 
 @app.route('/filings')
 def get_filings():
     """
-    Retrieve a list of all saved filings from Firestore.
+    Retrieve a list of all saved filings with their session information.
     
     Returns:
-        JSON with list of filings and their metadata
-        
-    Use this to:
-    - Browse previously scraped documents
-    - See filing statistics and timestamps
-    - Build a document management interface
+        JSON with list of filings and their metadata including latest session info
     """
     if not FIRESTORE_AVAILABLE or not db:
         return jsonify({"error": "Firestore not available"}), 503
     
     try:
-        # Query the 'filings' collection, ordered by most recent first
         filings_ref = db.collection('filings')
-        query = filings_ref.order_by('scraped_at', direction=firestore.Query.DESCENDING).limit(20)
+        query = filings_ref.order_by('latest_scrape_at', direction=firestore.Query.DESCENDING).limit(20)
         filings = query.stream()
         
         result = []
         for filing in filings:
             filing_data = filing.to_dict()
             result.append({
-                'filing_id': filing.id,                              # Database document ID
-                'url': filing_data.get('url', ''),                   # Original SEC URL
-                'filing_type': filing_data.get('filing_type', ''),   # 10-K, 10-Q, 8-K
-                'scraped_at': filing_data.get('scraped_at').isoformat() if filing_data.get('scraped_at') else None,
-                'sections_count': filing_data.get('sections_count', 0),
-                'successful_sections': filing_data.get('successful_sections', 0),
-                'failed_sections': filing_data.get('failed_sections', 0)
+                'filing_id': filing.id,
+                'url': filing_data.get('url', ''),
+                'filing_type': filing_data.get('filing_type', ''),
+                'first_scraped_at': filing_data.get('first_scraped_at').isoformat() if filing_data.get('first_scraped_at') else None,
+                'latest_scrape_at': filing_data.get('latest_scrape_at').isoformat() if filing_data.get('latest_scrape_at') else None,
+                'latest_session_id': filing_data.get('latest_session_id', ''),
+                'total_unique_sections': filing_data.get('total_unique_sections', 0),
+                'total_sessions': filing_data.get('total_sessions', 0)
             })
         
         return jsonify({
@@ -549,56 +588,163 @@ def get_filings():
         print(f"❌ Failed to fetch filings: {e}")
         return jsonify({"error": f"Failed to fetch filings: {e}"}), 500
 
-@app.route('/filings/<filing_id>/sections/<section_id>')
-def get_section(filing_id, section_id):
+@app.route('/filings/<filing_id>/sessions')
+def get_filing_sessions(filing_id):
     """
-    Retrieve the complete content of a specific section from Firestore.
+    Get all scrape sessions for a specific filing.
     
-    Args:
-        filing_id (str): The unique filing identifier
-        section_id (str): The section identifier (e.g., "1A", "7")
-        
     Returns:
-        JSON with complete section content and metadata
-        
-    Use this to:
-    - Access the full content that was stored in the database
-    - Retrieve content that was truncated in the original scrape response
-    - Build detailed document viewing interfaces
+        JSON with list of scrape sessions and their metadata
     """
     if not FIRESTORE_AVAILABLE or not db:
         return jsonify({"error": "Firestore not available"}), 503
     
     try:
-        # Navigate to the specific section document in the sub-collection
         filing_ref = db.collection('filings').document(filing_id)
-        section_ref = filing_ref.collection('sections').document(section_id)
+        sessions_ref = filing_ref.collection('scrape_sessions')
+        sessions_query = sessions_ref.order_by('scraped_at', direction=firestore.Query.DESCENDING)
+        sessions = sessions_query.stream()
+        
+        result = []
+        for session in sessions:
+            session_data = session.to_dict()
+            result.append({
+                'session_id': session.id,
+                'scraped_at': session_data.get('scraped_at').isoformat() if session_data.get('scraped_at') else None,
+                'sections_count': session_data.get('sections_count', 0),
+                'successful_sections': session_data.get('successful_sections', 0),
+                'failed_sections': session_data.get('failed_sections', 0),
+                'requested_sections': session_data.get('requested_sections', [])
+            })
+        
+        return jsonify({
+            "filing_id": filing_id,
+            "sessions": result,
+            "total_sessions": len(result)
+        })
+        
+    except Exception as e:
+        print(f"❌ Failed to fetch sessions: {e}")
+        return jsonify({"error": f"Failed to fetch sessions: {e}"}), 500
+
+@app.route('/filings/<filing_id>/sessions/<session_id>/sections')
+def get_session_sections(filing_id, session_id):
+    """
+    Get all sections from a specific scrape session.
+    
+    Returns:
+        JSON with list of sections from this session
+    """
+    if not FIRESTORE_AVAILABLE or not db:
+        return jsonify({"error": "Firestore not available"}), 503
+    
+    try:
+        filing_ref = db.collection('filings').document(filing_id)
+        session_ref = filing_ref.collection('scrape_sessions').document(session_id)
+        sections_ref = session_ref.collection('sections')
+        sections = sections_ref.stream()
+        
+        result = []
+        for section in sections:
+            section_data = section.to_dict()
+            result.append({
+                'section_id': section.id,
+                'content_length': section_data.get('content_length', 0),
+                'success': section_data.get('success', False),
+                'error': section_data.get('error', ''),
+                'scraped_at': section_data.get('scraped_at').isoformat() if section_data.get('scraped_at') else None
+            })
+        
+        return jsonify({
+            "filing_id": filing_id,
+            "session_id": session_id,
+            "sections": result,
+            "total_sections": len(result)
+        })
+        
+    except Exception as e:
+        print(f"❌ Failed to fetch session sections: {e}")
+        return jsonify({"error": f"Failed to fetch session sections: {e}"}), 500
+
+@app.route('/filings/<filing_id>/sessions/<session_id>/sections/<section_id>')
+def get_session_section(filing_id, session_id, section_id):
+    """
+    Get a specific section from a specific scrape session.
+    
+    Returns:
+        JSON with complete section content and metadata
+    """
+    if not FIRESTORE_AVAILABLE or not db:
+        return jsonify({"error": "Firestore not available"}), 503
+    
+    try:
+        # Navigate to the specific section in the session hierarchy
+        filing_ref = db.collection('filings').document(filing_id)
+        session_ref = filing_ref.collection('scrape_sessions').document(session_id)
+        section_ref = session_ref.collection('sections').document(section_id)
         section = section_ref.get()
         
-        # Check if the section exists
         if not section.exists:
             return jsonify({"error": "Section not found"}), 404
         
         section_data = section.to_dict()
         
-        # Also get the parent filing metadata for context
+        # Get session metadata for context
+        session = session_ref.get()
+        session_data = session.to_dict() if session.exists else {}
+        
+        # Get filing metadata for context
         filing = filing_ref.get()
         filing_data = filing.to_dict() if filing.exists else {}
         
         return jsonify({
             "filing_id": filing_id,
+            "session_id": session_id,
             "section_id": section_data.get('section_id'),
-            "filing_type": filing_data.get('filing_type'),
-            "filing_url": filing_data.get('url'),
-            "content": section_data.get('content', ''),          # FULL content from database
+            "filing_type": session_data.get('filing_type'),
+            "filing_url": session_data.get('filing_url'),
+            "content": section_data.get('content', ''),
             "content_length": section_data.get('content_length', 0),
             "success": section_data.get('success', False),
             "error": section_data.get('error', ''),
-            "scraped_at": section_data.get('scraped_at').isoformat() if section_data.get('scraped_at') else None
+            "scraped_at": section_data.get('scraped_at').isoformat() if section_data.get('scraped_at') else None,
+            "session_scraped_at": session_data.get('scraped_at').isoformat() if session_data.get('scraped_at') else None
         })
         
     except Exception as e:
-        print(f"❌ Failed to fetch section: {e}")
+        print(f"❌ Failed to fetch session section: {e}")
+        return jsonify({"error": f"Failed to fetch session section: {e}"}), 500
+
+# LEGACY ENDPOINT: Maintained for backward compatibility
+@app.route('/filings/<filing_id>/sections/<section_id>')
+def get_section_legacy(filing_id, section_id):
+    """
+    LEGACY: Get section from the latest session (for backward compatibility).
+    
+    This endpoint finds the most recent session and returns the section from there.
+    """
+    if not FIRESTORE_AVAILABLE or not db:
+        return jsonify({"error": "Firestore not available"}), 503
+    
+    try:
+        # Find the latest session for this filing
+        filing_ref = db.collection('filings').document(filing_id)
+        filing = filing_ref.get()
+        
+        if not filing.exists:
+            return jsonify({"error": "Filing not found"}), 404
+        
+        filing_data = filing.to_dict()
+        latest_session_id = filing_data.get('latest_session_id')
+        
+        if not latest_session_id:
+            return jsonify({"error": "No sessions found for this filing"}), 404
+        
+        # Redirect to the new session-based endpoint
+        return get_session_section(filing_id, latest_session_id, section_id)
+        
+    except Exception as e:
+        print(f"❌ Failed to fetch legacy section: {e}")
         return jsonify({"error": f"Failed to fetch section: {e}"}), 500
 
 @app.route('/debug/test-section', methods=['POST'])
