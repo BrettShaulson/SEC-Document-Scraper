@@ -1,6 +1,6 @@
 # SEC Document Scraper Backend
 # A Flask web application that extracts sections from SEC filings and stores them in Firestore
-# Author: AI Assistant
+# Author: Brett Shaulson
 # Last Updated: 2025-07-28
 # NEW: Implements scrape session hierarchy for better data organization
 
