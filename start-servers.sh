@@ -5,7 +5,7 @@
 # 
 # Usage: ./start-servers.sh
 # 
-# Author: AI Assistant
+# Author: Brett Shaulson
 # Last Updated: 2025-07-27
 
 echo "🚀 Starting SEC Document Scraper on Google Cloud Compute Engine"
