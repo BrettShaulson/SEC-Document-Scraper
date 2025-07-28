@@ -18,11 +18,11 @@ A web application for extracting sections from SEC 10-K, 10-Q, and 8-K filings w
 - **Google Cloud CLI** configured with Firestore enabled
 
 ### **Access**
-####**Local**
+#### **Local**
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
 - **Health Check**: http://localhost:8080/healthz
-####**On Compute Engine**
+#### **On Compute Engine**
 - **Frontend**: http://(Compute Engine External IP):3000
 - **Backend API**: http://(Compute Engine External IP):8080
 - **Health Check**: http://(Compute Engine External IP):8080/healthz
